@@ -1,10 +1,13 @@
+/* UNFINISHED, SEG FAULTS
+ * Reverse polish calculator
+ * Author: Connor Allen 934467445
+ */
+
+
 .equ SYS_write, 1
 .equ SYS_exit, 60
 .equ STDOUT_FILENO, 1
 
-.extern printf
-.extern strtoll
-.extern strcmp
 .globl main
 .type main, @function
 
@@ -24,12 +27,17 @@ parsing_loop:
 	movq (%rsi), %r12
 	test %r12, %r12
 	je print_result
+	addq $8, %rsi
 
 add_cmp:
 	push %rsi
 	movq %r12, %rsi
 	leaq op_add(%rip), %rdi
 	
+	movq %rsp, %r13
+	andq $-16, %rsp
+	movq %r13, %rsp
+
 	call strcmp
 	pop %rsi
 	test %eax, %eax
@@ -43,7 +51,11 @@ sub_cmp:
 	push %rsi
 	movq %r12, %rsi
 	leaq op_sub(%rip), %rdi
-	
+
+	movq %rsp, %r13
+	andq $-16, %rsp
+	movq %r13, %rsp
+
 	call strcmp
 	pop %rsi
 	test %eax, %eax
@@ -58,6 +70,10 @@ mul_cmp:
 	movq %r12, %rsi
 	leaq op_mul(%rip), %rdi
 	
+	movq %rsp, %r13
+	andq $-16, %rsp
+	movq %r13, %rsp
+
 	call strcmp
 	pop %rsi
 	test %eax, %eax
@@ -74,6 +90,10 @@ div_cmp:
 	movq %r12, %rsi
 	leaq op_div(%rip), %rdi
 	
+	movq %rsp, %r13
+	andq $-16, %rsp
+	movq %r13, %rsp
+
 	call strcmp
 	pop %rsi
 	test %eax, %eax
@@ -83,6 +103,7 @@ div_cmp:
 	pop %rax
 	cqo
 	idivq %r8
+	push %rax
 	jmp parsing_loop
 
 num_convert:
@@ -97,54 +118,15 @@ num_convert:
 
 print_result:
 	mov (%rsp), %rdi
-	call print_int
+	mov $SYS_write, %rax
+	syscall
 	mov $0, %rdi
+	pop %rbp
 	call exit
 
 exit:
 	mov $SYS_exit, %rax
 	syscall
-
-print_int:
-	mov %rsp, %rsi
-	sub $32, %rsp
-	mov %rsp, %rcx
-
-	mov %rdi, %rax
-	mov $0, %r8
-
-	cmp $0, %rax
-	jge .convert_loop
-	neg %rax
-	mov $1, %r8
-
-.convert_loop:
-	xor %rdx, %rdx
-	mov $10, %rbx
-	div %rbx
-	add $'0', %dl
-	dec %rcx
-	mov %dl, (%rcx)
-
-	test %rax, %rax
-	jne .convert_loop
-
-	cmp $0, %r8
-	je .print_it
-	dec %rcx
-	movb $'-', (%rcx)
-
-.print_it:
-	mov $1, %rax
-	mov $1, %rdi
-	mov %rcx, %rsi
-	mov %rsp, %rdx
-	sub %rcx, %rdx
-	syscall
-
-	mov %rsi, %rsp
-	ret
-
 
 .section .rodata
 op_add: .asciz "+"
