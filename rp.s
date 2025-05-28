@@ -31,15 +31,19 @@ parsing_loop:
 
 add_cmp:
 	push %rsi
+
 	movq %r12, %rsi
 	leaq op_add(%rip), %rdi
 	
 	movq %rsp, %r13
 	andq $-16, %rsp
-	movq %r13, %rsp
 
+	xor %rax, %rax
 	call strcmp
-	pop %rsi
+
+	movq %r13, %rsp
+	pop %rsi 
+
 	test %eax, %eax
 	jne sub_cmp
 
@@ -54,10 +58,13 @@ sub_cmp:
 
 	movq %rsp, %r13
 	andq $-16, %rsp
-	movq %r13, %rsp
 
+	xor %rax, %rax
 	call strcmp
+
+	movq %r13, %rsp
 	pop %rsi
+
 	test %eax, %eax
 	jne mul_cmp
 
@@ -72,15 +79,17 @@ mul_cmp:
 	
 	movq %rsp, %r13
 	andq $-16, %rsp
-	movq %r13, %rsp
 
+	xor %rax, %rax
 	call strcmp
+
+	movq %r13, %rsp
 	pop %rsi
 	test %eax, %eax
 	jne div_cmp
 
-	pop %r8
 	pop %rax
+	pop %r8
 	imulq %r8
 	push %rax
 	jmp parsing_loop
@@ -92,10 +101,13 @@ div_cmp:
 	
 	movq %rsp, %r13
 	andq $-16, %rsp
-	movq %r13, %rsp
 
+	xor %rax, %rax
 	call strcmp
+
+	movq %r13, %rsp
 	pop %rsi
+
 	test %eax, %eax
 	jne num_convert
 
@@ -107,25 +119,38 @@ div_cmp:
 	jmp parsing_loop
 
 num_convert:
+	push %rsi
 	movq %r12, %rdi
 	leaq endptr(%rip), %rsi
 	xor %rdx, %rdx
 
+	movq %rsp, %r13
+	andq $-16, %rsp
+
+	xor %rax, %rax
 	call strtoll
+
+	movq %r13, %rsp
+	pop %rsi
+
 	push %rax
 	
 	jmp parsing_loop
 
 print_result:
-	mov (%rsp), %rdi
-	mov $SYS_write, %rax
-	syscall
-	mov $0, %rdi
-	pop %rbp
-	call exit
+	leaq print_result_str(%rip), %rdi
+	pop %rsi
+
+	movq (%rsp), %rdi
+	xor %rax, %rax
+	call printf
+	
+	leaq 8(%rsp), %rsp
+	leave
+	ret
 
 exit:
-	mov $SYS_exit, %rax
+	movq $SYS_exit, (%rax)
 	syscall
 
 .section .rodata
@@ -133,6 +158,7 @@ op_add: .asciz "+"
 op_sub: .asciz "-"
 op_mul: .asciz "*"
 op_div: .asciz "/"
+print_result_str: .asciz "%ld\n"
 
 .section .bss
 endptr: .space 8
